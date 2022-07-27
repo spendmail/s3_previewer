@@ -5,9 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/nfnt/resize"
 	"image"
 	"image/jpeg"
@@ -15,7 +12,6 @@ import (
 	"image/png"
 	_ "image/png"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -46,6 +42,7 @@ type Cache interface {
 }
 
 type S3Client interface {
+	Download(context context.Context, bucket, key string) ([]byte, error)
 }
 
 type Application struct {
@@ -96,34 +93,7 @@ func (app *Application) ResizeImageByURL(width, height int, bucket string, key s
 	//	return resultBytes, nil
 	//}
 
-	// Load the Shared AWS Configuration (~/.aws/config)
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return []byte{}, err
-	}
-
-	// Create an Amazon S3 service client
-	client := s3.NewFromConfig(cfg)
-
-	// Downloading file from s3
-	response, err := client.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	})
-
-	// Make sure to always close the response Body when finished
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(response.Body)
-
-	if err != nil {
-		return []byte{}, err
-	}
-
-	sourceBytes, err := ioutil.ReadAll(response.Body)
+	sourceBytes, err := app.S3Client.Download(context.TODO(), bucket, key)
 	if err != nil {
 		return []byte{}, err
 	}
