@@ -1,0 +1,15 @@
+[logger]
+level = "debug"
+file = "/tmp/previewer.log"
+
+[http]
+host = "0.0.0.0"
+port = 8888
+
+[cache]
+capacity = 1000
+path = "/tmp/cache"
+
+[s3]
+access_key_id = "access_key_id"
+secret_access_key = "secret_access_key"

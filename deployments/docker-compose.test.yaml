@@ -1,0 +1,38 @@
+version: '3.7'
+
+networks:
+  previewer:
+    driver: bridge
+
+services:
+  integration_tests:
+    build: ../test
+    container_name: previewer_test_bdd
+    command: 'true'
+    environment:
+      TESTS_HTTP_HOST: 'http://previewer:8888'
+      WAIT_HOSTS: previewer:8888
+    depends_on:
+      - previewer
+    links:
+      - previewer
+    networks:
+      - previewer
+
+  previewer:
+    build:
+      context: ../
+      dockerfile: build/Dockerfile
+      args:
+        - LDFLAGS=$LDFLAGS
+        - CONFIG_FILE_NAME=$CONFIG_FILE_NAME
+    container_name: previewer_test
+    restart: on-failure
+    ports:
+      - '8888:8888'
+    expose:
+      - 8888
+    volumes:
+      - ./logs/:/tmp/
+    networks:
+      - previewer
