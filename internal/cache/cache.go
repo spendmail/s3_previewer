@@ -53,7 +53,7 @@ func New(config Config, logger Logger) (*LruCache, error) {
 		logger:   logger,
 	}
 
-	err := os.MkdirAll(cache.path, os.ModePerm)
+	err := cache.restoreFromFilesystem()
 	if err != nil {
 		return nil, err
 	}
@@ -113,9 +113,12 @@ func (l *LruCache) Set(key string, imageBytes []byte) error {
 		}
 
 		// Saving file to filesystem
-		err := l.saveToFileSystem(filename, imageBytes)
-		if err != nil {
-			l.logger.Error(fmt.Errorf("%w: %s", ErrFileWrite, err))
+		// Nil value is used for restoring cache after launching
+		if imageBytes != nil {
+			err := l.saveToFileSystem(filename, imageBytes)
+			if err != nil {
+				l.logger.Error(fmt.Errorf("%w: %s", ErrFileWrite, err))
+			}
 		}
 	}
 
@@ -147,6 +150,11 @@ func encodeFileName(key string) string {
 	return base64.StdEncoding.EncodeToString([]byte(key))
 }
 
+// decodeFileName decodes filename from key.
+func decodeKey(key string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(key)
+}
+
 // saveToFileSystem writes file to filesystem.
 func (l *LruCache) saveToFileSystem(filename string, bytes []byte) error {
 	absFilename := filepath.Join(l.path, filename)
@@ -176,4 +184,32 @@ func (l *LruCache) removeFromFileSystem(filename string) error {
 func (l *LruCache) Clear() {
 	l.queue = NewList()
 	l.items = make(map[string]*ListItem, l.capacity)
+}
+
+func (l *LruCache) restoreFromFilesystem() error {
+	if _, err := os.Stat(l.path); os.IsNotExist(err) {
+		err := os.MkdirAll(l.path, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	} else {
+		files, err := ioutil.ReadDir(l.path)
+		if err != nil {
+			return err
+		}
+
+		for _, f := range files {
+			name, err := decodeKey(f.Name())
+			if err != nil {
+				return err
+			}
+
+			err = l.Set(string(name), nil)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

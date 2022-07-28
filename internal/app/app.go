@@ -62,6 +62,12 @@ var (
 	ErrFileRead        = errors.New("unable to read a file")
 )
 
+const (
+	ExtPng  = ".png"
+	ExtJPG  = ".jpg"
+	ExtJPEG = ".jpeg"
+)
+
 // New is an application constructor.
 func New(logger Logger, resizer Resizer, cache Cache, s3Client S3Client) (*Application, error) {
 	return &Application{
@@ -109,9 +115,9 @@ func (app *Application) ResizeImageByURL(width, height int, bucket string, key s
 	buf := new(bytes.Buffer)
 
 	ext := strings.ToLower(filepath.Ext(key))
-	if ext == ".png" {
+	if ext == ExtPng {
 		err = png.Encode(buf, newImage)
-	} else if ext == ".jpg" || ext == ".jpeg" {
+	} else if ext == ExtJPG || ext == ExtJPEG {
 		err = jpeg.Encode(buf, newImage, nil)
 	} else {
 		err = errors.New(fmt.Sprintf("file type %s is not supported", key))
