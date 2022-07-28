@@ -3,6 +3,8 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/nfnt/resize"
@@ -84,14 +86,14 @@ func goId() int {
 // ResizeImageByURL downloads, caches and crops images by given sizes and URL.
 func (app *Application) ResizeImageByURL(width, height int, bucket string, key string, headers map[string][]string) ([]byte, error) {
 	// Key includes sizes in order to store different files for different sizes of the same file.
-	//hash := md5.Sum([]byte(fmt.Sprintf("%s-%s-%d-%d", bucket, key, width, height)))
-	//cacheKey := hex.EncodeToString(hash[:])
+	hash := md5.Sum([]byte(fmt.Sprintf("%s-%s-%d-%d", bucket, key, width, height)))
+	cacheKey := hex.EncodeToString(hash[:])
 
-	//// If file exists in cache, return from there.
-	//resultBytes, err := app.Cache.Get(cacheKey)
-	//if err == nil {
-	//	return resultBytes, nil
-	//}
+	// If file exists in cache, return from there.
+	resultBytes, err := app.Cache.Get(cacheKey)
+	if err == nil {
+		return resultBytes, nil
+	}
 
 	sourceBytes, err := app.S3Client.Download(context.TODO(), bucket, key)
 	if err != nil {
@@ -120,7 +122,7 @@ func (app *Application) ResizeImageByURL(width, height int, bucket string, key s
 	}
 
 	// Set processed image in cache
-	//_ = app.Cache.Set(cacheKey, resultBytes)
+	_ = app.Cache.Set(cacheKey, buf.Bytes())
 
 	// And return slice of bytes.
 	return buf.Bytes(), nil
