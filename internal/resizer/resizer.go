@@ -1,10 +1,13 @@
 package resizer
 
 import (
-	"fmt"
-
+	"bytes"
+	"github.com/nfnt/resize"
 	"github.com/pkg/errors"
-	"gopkg.in/gographics/imagick.v2/imagick"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"net/http"
 )
 
 type Resizer struct{}
@@ -14,49 +17,29 @@ func New() *Resizer {
 	return &Resizer{}
 }
 
-var (
-	ErrFileRead                = errors.New("unable to read a file")
-	ErrImageResize             = errors.New("unable to resize an image")
-	ErrQualitySetting          = errors.New("unable to set a compression quality")
-	ErrBothSizesNegativeOrZero = errors.New("both given sizes are negative or zero")
+const (
+	MimePng  = "image/png"
+	MimeJpeg = "image/jpeg"
 )
 
-// Resize modifies file sizes by given slice of bytes.
-// Note that Resize upscales file if source file is smaller!
-func (r *Resizer) Resize(width, height uint, image []byte) ([]byte, error) {
-	imagick.Initialize()
-	defer imagick.Terminate()
+func (r *Resizer) Resize(width, height uint, imageBytes []byte) ([]byte, error) {
 
-	mw := imagick.NewMagickWand()
-	err := mw.ReadImageBlob(image)
+	originalImage, _, err := image.Decode(bytes.NewReader(imageBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrFileRead, err)
+		return []byte{}, err
 	}
 
-	ow := mw.GetImageWidth()
-	oh := mw.GetImageHeight()
+	newImage := resize.Resize(width, height, originalImage, resize.Lanczos3)
+	buf := new(bytes.Buffer)
 
-	if height <= 0 && width <= 0 {
-		return nil, fmt.Errorf("%w: width: %d, height: %d", ErrBothSizesNegativeOrZero, width, height)
+	mimeType := http.DetectContentType(imageBytes)
+	if mimeType == MimePng {
+		err = png.Encode(buf, newImage)
+	} else if mimeType == MimeJpeg {
+		err = jpeg.Encode(buf, newImage, nil)
+	} else {
+		err = errors.New("file type is not supported")
 	}
 
-	if height <= 0 {
-		height = oh * width / ow
-	}
-
-	if width <= 0 {
-		width = ow * height / oh
-	}
-
-	err = mw.ResizeImage(width, height, imagick.FILTER_LANCZOS, 1)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrImageResize, err)
-	}
-
-	err = mw.SetImageCompressionQuality(95)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s", ErrQualitySetting, err)
-	}
-
-	return mw.GetImageBlob(), nil
+	return buf.Bytes(), nil
 }

@@ -9,13 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	internals3 "github.com/spendmail/s3_previewer/internal/s3"
-	internalapp "github.com/spendmail/s3_previewer/internal/app"
-	internalcache "github.com/spendmail/s3_previewer/internal/cache"
-	internalconfig "github.com/spendmail/s3_previewer/internal/config"
-	internallogger "github.com/spendmail/s3_previewer/internal/logger"
-	internalresizer "github.com/spendmail/s3_previewer/internal/resizer"
-	internalserver "github.com/spendmail/s3_previewer/internal/server/http"
+	internalApp "github.com/spendmail/s3_previewer/internal/app"
+	internalCache "github.com/spendmail/s3_previewer/internal/cache"
+	internalConfig "github.com/spendmail/s3_previewer/internal/config"
+	internalLogger "github.com/spendmail/s3_previewer/internal/logger"
+	internalResizer "github.com/spendmail/s3_previewer/internal/resizer"
+	internalS3 "github.com/spendmail/s3_previewer/internal/s3"
+	internalServer "github.com/spendmail/s3_previewer/internal/server/http"
 )
 
 var configPath string
@@ -32,32 +32,32 @@ func main() {
 		return
 	}
 
-	config, err := internalconfig.NewConfig(configPath)
+	config, err := internalConfig.NewConfig(configPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	logger, err := internallogger.New(config)
+	logger, err := internalLogger.New(config)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	cache, err := internalcache.New(config, logger)
+	cache, err := internalCache.New(config, logger)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s3Client, err := internals3.New(config, logger)
+	s3Client, err := internalS3.New(config, logger)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	app, err := internalapp.New(logger, internalresizer.New(), cache, s3Client)
+	app, err := internalApp.New(logger, internalResizer.New(), cache, s3Client)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	server := internalserver.New(config, logger, app)
+	server := internalServer.New(config, logger, app)
 	if err != nil {
 		log.Fatal(err)
 	}

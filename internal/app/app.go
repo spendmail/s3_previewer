@@ -1,25 +1,14 @@
 package app
 
 import (
-	"bytes"
 	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/nfnt/resize"
-	"image"
-	"image/jpeg"
-	_ "image/jpeg"
-	"image/png"
-	_ "image/png"
 	"io"
 	"net"
 	"net/http"
-	"path/filepath"
-	"runtime"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -34,7 +23,7 @@ type Logger interface {
 }
 
 type Resizer interface {
-	Resize(width, height uint, image []byte) ([]byte, error)
+	Resize(width, height uint, imageBytes []byte) ([]byte, error)
 }
 
 type Cache interface {
@@ -62,12 +51,6 @@ var (
 	ErrFileRead        = errors.New("unable to read a file")
 )
 
-const (
-	ExtPng  = ".png"
-	ExtJPG  = ".jpg"
-	ExtJPEG = ".jpeg"
-)
-
 // New is an application constructor.
 func New(logger Logger, resizer Resizer, cache Cache, s3Client S3Client) (*Application, error) {
 	return &Application{
@@ -76,17 +59,6 @@ func New(logger Logger, resizer Resizer, cache Cache, s3Client S3Client) (*Appli
 		Resizer:  resizer,
 		S3Client: s3Client,
 	}, nil
-}
-
-func goId() int {
-	var buf [64]byte
-	n := runtime.Stack(buf[:], false)
-	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
-	id, err := strconv.Atoi(idField)
-	if err != nil {
-		panic(fmt.Sprintf("cannot get goroutine id: %v", err))
-	}
-	return id
 }
 
 // ResizeImageByURL downloads, caches and crops images by given sizes and URL.
@@ -106,32 +78,16 @@ func (app *Application) ResizeImageByURL(width, height int, bucket string, key s
 		return []byte{}, err
 	}
 
-	originalImage, _, err := image.Decode(bytes.NewReader(sourceBytes))
-	if err != nil {
-		return []byte{}, err
-	}
-
-	newImage := resize.Resize(uint(width), uint(height), originalImage, resize.Lanczos3)
-	buf := new(bytes.Buffer)
-
-	ext := strings.ToLower(filepath.Ext(key))
-	if ext == ExtPng {
-		err = png.Encode(buf, newImage)
-	} else if ext == ExtJPG || ext == ExtJPEG {
-		err = jpeg.Encode(buf, newImage, nil)
-	} else {
-		err = errors.New(fmt.Sprintf("file type %s is not supported", key))
-	}
-
+	resultBytes, err = app.Resizer.Resize(uint(width), uint(height), sourceBytes)
 	if err != nil {
 		return []byte{}, err
 	}
 
 	// Set processed image in cache
-	_ = app.Cache.Set(cacheKey, buf.Bytes())
+	_ = app.Cache.Set(cacheKey, resultBytes)
 
 	// And return slice of bytes.
-	return buf.Bytes(), nil
+	return resultBytes, nil
 }
 
 // downloadByURL downloads image by given url forwarding original headers.
