@@ -73,9 +73,6 @@ func (l *LruCache) Get(key string) ([]byte, error) {
 		return []byte{}, ErrItemNotExists
 	}
 
-	// If cache element exists, move it to front
-	l.queue.MoveToFront(item)
-
 	// To get actual value, interface{} needs to be casted to cacheItem
 	cacheItemElement := item.Value.(cacheItem)
 	filename := cacheItemElement.value
@@ -83,8 +80,15 @@ func (l *LruCache) Get(key string) ([]byte, error) {
 	// Reading from filesystem
 	value, err := l.readFromFileSystem(filename)
 	if err != nil {
+		// Removing from cache if file doesn't exist
+		delete(l.items, key)
+		l.queue.Remove(item)
+
 		return []byte{}, fmt.Errorf("%w: %s", ErrFileRead, err)
 	}
+
+	// In success case move it to front
+	l.queue.MoveToFront(item)
 
 	return value, nil
 }
