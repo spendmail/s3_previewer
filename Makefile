@@ -6,8 +6,11 @@ GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 # Build application locally (without docker).
+#build:
+#	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/previewer
+
 build:
-	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/previewer
+	CGO_ENABLED=0 go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/previewer
 
 # Launch application locally (without docker).
 launch: build

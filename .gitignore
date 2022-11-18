@@ -3,3 +3,4 @@ bin/
 help/
 .idea/
 configs/previewer.toml
+configs/previewer.prod.toml

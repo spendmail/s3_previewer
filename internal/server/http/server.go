@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	URLResizePattern = "/resize/{width:[0-9]+}/{height:[0-9]+}/{bucket:[a-zA-Z]+}/{key:.+}"
+	URLResizePattern = "/resize/{width:[0-9]+}/{height:[0-9]+}/{bucket:[a-zA-Z-]+}/{key:.+}"
 	WidthField       = "width"
 	HeightField      = "height"
 	BucketField      = "bucket"
